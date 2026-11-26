@@ -1,0 +1,256 @@
+import { useEffect, useState } from "react"
+import { Link, useSearchParams } from "react-router-dom"
+import {
+  AlertCircle,
+  ArrowDownWideNarrow,
+  ArrowUpWideNarrow,
+  ChevronLeft,
+  ChevronRight,
+  ImageOff,
+  Search,
+  SlidersHorizontal,
+  X,
+} from "lucide-react"
+import { getResourceTypes, type ResourceListing, type ResourcesResponse, type SortOrder } from "@/data/resources"
+import { fetchResources } from "@/data/resources-api"
+import { ResourceTypePills } from "@/components/resource-type-pills"
+import { SubmitterHoverCard } from "@/components/submitter-hover-card"
+import { ResourceTypeIcon } from "@/components/resource-type-icon"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
+function CoverArtwork({ resource }: { resource: ResourceListing }) {
+  return (
+    <div className="resource-art">
+      {resource.coverUrl ? <img src={resource.coverUrl} alt={`Cover for ${resource.title}`} loading="lazy" decoding="async" /> : <div className="resource-art-placeholder" role="img" aria-label={`No cover available for ${resource.title}`}><ImageOff size={22} /></div>}
+    </div>
+  )
+}
+
+function ResourceCard({ resource }: { resource: ResourceListing }) {
+  const [focused, setFocused] = useState(false)
+  return (
+    <Link className="resource-card-link" to={`/resources/${encodeURIComponent(resource.slug)}`} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} aria-describedby={focused ? `submitter-preview-${resource.id.replace(/[^a-zA-Z0-9_-]/g, "-")}` : undefined}>
+      <article className="resource-card browse-resource-card">
+        <CoverArtwork resource={resource} />
+        <SubmitterHoverCard
+          userId={resource.submittedByUserId}
+          name={resource.submittedBy}
+          image={resource.submittedByImage}
+          previewId={`submitter-preview-${resource.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`}
+          className="resource-submitter-preview"
+          focused={focused}
+        >
+          <span className="resource-submitter-avatar" role="img" aria-label={`Submitted by ${resource.submittedBy}`}>
+            {resource.submittedByImage ? <img src={resource.submittedByImage} alt="" loading="lazy" /> : resource.submittedBy.slice(0, 1).toUpperCase()}
+          </span>
+        </SubmitterHoverCard>
+        <div className="resource-card-body">
+          <div className="resource-card-heading">
+            <div className="resource-card-title-row">
+              <h2 className="resource-card-title">{resource.title}</h2>
+              <ResourceTypePills className="resource-type-pills-card" types={getResourceTypes(resource)} />
+            </div>
+          </div>
+          <p className="resource-card-submitted">Original By <span>{resource.originalBy?.trim() || "Not listed"}</span></p>
+          {resource.description && <p className="resource-card-description">{resource.description}</p>}
+        </div>
+      </article>
+    </Link>
+  )
+}
+
+function SelectField({ label, value, options, onChange, typeOptions = false }: { label: string; value: string; options: string[]; onChange: (value: string) => void; typeOptions?: boolean }) {
+  const allLabel = `All ${label.toLowerCase()}s`
+  return (
+    <label className="filter-field">
+      <span className="sr-only">{label}</span>
+      <Select<string> value={value} onValueChange={(next) => { if (next) onChange(next) }}>
+        <SelectTrigger aria-label={label}>
+          {typeOptions && value !== "all" && <ResourceTypeIcon type={value} />}
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">{allLabel}</SelectItem>
+          {options.map((option) => <SelectItem key={option} value={option}>{typeOptions && <ResourceTypeIcon type={option} />}{option}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </label>
+  )
+}
+
+function BrowseFilters({ facets, type, onTypeChange }: {
+  facets: ResourcesResponse["facets"]
+  type: string
+  onTypeChange: (value: string) => void
+}) {
+  return (
+    <div className="filter-selects">
+      <SelectField label="Type" value={type} options={facets.types} onChange={onTypeChange} typeOptions />
+    </div>
+  )
+}
+
+function BrowseEmptyState({ noResults, onReset }: { noResults: boolean; onReset: () => void }) {
+  return (
+    <div className="browse-empty" role="status">
+      <span className="empty-icon"><Search size={19} /></span>
+      <h2>{noResults ? "No resources match those filters" : "No resources in the catalog yet"}</h2>
+      <p>{noResults ? "Try a different search or clear some filters." : "Resources will appear here once catalog records are added."}</p>
+      {noResults && <Button variant="outline" size="sm" onClick={onReset}><X size={14} />Clear search and filters</Button>}
+    </div>
+  )
+}
+
+function BrowseErrorState({ error, onRetry }: { error: string; onRetry: () => void }) {
+  return (
+    <div className="browse-empty" role="alert">
+      <span className="empty-icon"><AlertCircle size={19} /></span>
+      <h2>Couldn’t load the catalog</h2>
+      <p>{error}</p>
+      <Button variant="outline" size="sm" onClick={onRetry}>Retry</Button>
+    </div>
+  )
+}
+
+function ResourceGridSkeleton() {
+  return <div className="resource-grid" aria-label="Loading resources">{Array.from({ length: 6 }, (_, index) => <div className="resource-card resource-card-skeleton" key={index} aria-hidden="true"><div className="skeleton-cover" /><div className="skeleton-lines"><span /><span /><span /></div></div>)}</div>
+}
+
+function emptyFacets(): ResourcesResponse["facets"] {
+  return { types: [] }
+}
+
+export function BrowsePage() {
+  const [params, setParams] = useSearchParams()
+  const [data, setData] = useState<ResourcesResponse>()
+  const [error, setError] = useState<string>()
+  const [loadedRequestKey, setLoadedRequestKey] = useState<string>()
+  const [retryCount, setRetryCount] = useState(0)
+  const queryString = params.toString()
+  const requestKey = `${queryString}:${retryCount}`
+  const query = params.get("q") ?? ""
+  const type = params.get("type") ?? params.get("fileType") ?? params.get("category") ?? "all"
+  const sortParam = params.get("sort")
+  const validSortOrders: SortOrder[] = ["newest", "oldest", "updated", "least-updated", "alphabetical", "reverse-alphabetical"]
+  const sortOrder: SortOrder = validSortOrders.includes(sortParam as SortOrder) ? sortParam as SortOrder : "newest"
+  const loading = loadedRequestKey !== requestKey
+  const activeError = loadedRequestKey === requestKey ? error : undefined
+
+  useEffect(() => {
+    if (!params.has("status")) return
+    const next = new URLSearchParams(params)
+    next.delete("status")
+    setParams(next, { replace: true })
+  }, [params, setParams])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => {
+      fetchResources(new URLSearchParams(queryString), controller.signal)
+        .then((result) => { setData(result); setError(undefined) })
+        .catch((cause: unknown) => {
+          if (cause instanceof DOMException && cause.name === "AbortError") return
+          setError(cause instanceof Error ? cause.message : "An unexpected error occurred.")
+        })
+        .finally(() => { if (!controller.signal.aborted) setLoadedRequestKey(requestKey) })
+    }, query ? 250 : 0)
+    return () => { window.clearTimeout(timeout); controller.abort() }
+  }, [query, queryString, requestKey])
+
+  const updateParam = (key: string, value: string, resetPage = true) => {
+    const next = new URLSearchParams(params)
+    if (value && value !== "all" && !(key === "sort" && value === "newest")) next.set(key, value)
+    else next.delete(key)
+    if (resetPage && key !== "page") next.delete("page")
+    setParams(next, { replace: true })
+  }
+  const updateType = (value: string) => {
+    const next = new URLSearchParams(params)
+    next.delete("category")
+    next.delete("fileType")
+    if (value && value !== "all") next.set("type", value)
+    else next.delete("type")
+    next.delete("page")
+    setParams(next, { replace: true })
+  }
+  const resetFilters = () => setParams(new URLSearchParams(), { replace: true })
+  const activeFilterCount = Number(type !== "all")
+  const facets = data?.facets ?? emptyFacets()
+  const noResults = data?.total === 0 && (query.trim().length > 0 || type !== "all")
+  const reverseSort: Record<SortOrder, SortOrder> = {
+    newest: "oldest",
+    oldest: "newest",
+    updated: "least-updated",
+    "least-updated": "updated",
+    alphabetical: "reverse-alphabetical",
+    "reverse-alphabetical": "alphabetical",
+  }
+  const ascendingSort = sortOrder === "oldest" || sortOrder === "least-updated" || sortOrder === "reverse-alphabetical"
+
+  return (
+    <div className="browse-page">
+      <search className="browse-search-area">
+        <label className="sr-only" htmlFor="browse-search">Search resources by title, creator, or tag</label>
+        <Search className="search-icon" size={18} aria-hidden="true" />
+        <Input id="browse-search" className="browse-search-input" value={query} onChange={(event) => updateParam("q", event.target.value)} placeholder="Search resources, creators, and tags" autoComplete="off" />
+        {query && <Button className="search-clear" variant="ghost" size="icon-sm" aria-label="Clear search" onClick={() => updateParam("q", "")}><X size={16} /></Button>}
+      </search>
+
+      <section className="browse-controls" aria-label="Browse controls">
+        <div className="desktop-filter-controls">
+          <BrowseFilters facets={facets} type={type} onTypeChange={updateType} />
+        </div>
+        <div className="browse-control-actions">
+          <Sheet>
+            <SheetTrigger className="mobile-filter-trigger" render={<Button variant="outline" size="sm" />}>
+              <SlidersHorizontal size={15} /> Filters{activeFilterCount > 0 && <span className="filter-count">{activeFilterCount}</span>}
+            </SheetTrigger>
+            <SheetContent side="right" className="mobile-filter-sheet">
+              <SheetHeader>
+                <SheetTitle>Filters</SheetTitle>
+                <SheetDescription>Refine by resource type. Search also checks tags.</SheetDescription>
+              </SheetHeader>
+              <div className="mobile-filter-fields">
+                <BrowseFilters facets={facets} type={type} onTypeChange={updateType} />
+              </div>
+              <div className="mobile-filter-footer"><Button variant="outline" onClick={resetFilters}>Reset filters</Button></div>
+            </SheetContent>
+          </Sheet>
+          <div className="sort-field">
+            <span className="sr-only">Sort resources</span>
+            <Button className="sort-direction" variant="outline" size="icon-sm" aria-label={`Switch to ${ascendingSort ? "descending" : "ascending"} order`} title={`Switch to ${ascendingSort ? "descending" : "ascending"} order`} onClick={() => updateParam("sort", reverseSort[sortOrder])}>
+              {ascendingSort ? <ArrowUpWideNarrow size={15} aria-hidden="true" /> : <ArrowDownWideNarrow size={15} aria-hidden="true" />}
+            </Button>
+            <Select value={sortOrder} onValueChange={(value) => { if (value) updateParam("sort", value) }}>
+            <SelectTrigger aria-label="Sort resources"><SelectValue /></SelectTrigger>
+              <SelectContent className="sort-menu">
+                <SelectItem value="newest">Newest</SelectItem>
+                <SelectItem value="oldest">Oldest</SelectItem>
+                <SelectItem value="updated">Recently updated</SelectItem>
+                <SelectItem value="least-updated">Least recently updated</SelectItem>
+                <SelectItem value="alphabetical">Title A–Z</SelectItem>
+                <SelectItem value="reverse-alphabetical">Title Z–A</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {activeFilterCount > 0 && <Button className="desktop-reset" variant="ghost" size="sm" onClick={resetFilters}>Clear filters</Button>}
+        </div>
+      </section>
+
+      <section className="results-section" aria-label="Browse results" aria-busy={loading}>
+        {activeFilterCount > 0 && <p className="results-filter-summary">{activeFilterCount} {activeFilterCount === 1 ? "filter" : "filters"} applied</p>}
+        {loading ? <ResourceGridSkeleton /> : activeError ? <BrowseErrorState error={activeError} onRetry={() => setRetryCount((count) => count + 1)} /> : data?.resources.length ? <div className="resource-grid">{data.resources.map((resource) => <ResourceCard key={resource.id} resource={resource} />)}</div> : <BrowseEmptyState noResults={noResults} onReset={resetFilters} />}
+        {!loading && !activeError && data && data.pageCount > 1 && (
+          <nav className="pagination" aria-label="Browse pages">
+            <Button variant="outline" size="sm" disabled={data.page <= 1} onClick={() => updateParam("page", String(data.page - 1), false)}><ChevronLeft size={15} />Previous</Button>
+            <span>Page {data.page} of {data.pageCount}</span>
+            <Button variant="outline" size="sm" disabled={data.page >= data.pageCount} onClick={() => updateParam("page", String(data.page + 1), false)}>Next<ChevronRight size={15} /></Button>
+          </nav>
+        )}
+      </section>
+    </div>
+  )
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "funkin-archive",
+  "compatibility_date": "2026-11-23",
+  "pages_build_output_dir": "./dist",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "funkin-commons",
+      "database_id": "34659fc6-4c55-4a71-ab2d-88a99c75d711"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "RESOURCE_ASSETS",
+      "bucket_name": "funkin-commons-assets"
+    }
+  ]
+}

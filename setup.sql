@@ -1,0 +1,111 @@
+﻿PRAGMA foreign_keys = ON;
+
+CREATE TABLE "user" (
+  id TEXT NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  emailVerified INTEGER NOT NULL,
+  image TEXT,
+  createdAt DATE NOT NULL,
+  updatedAt DATE NOT NULL,
+  bio TEXT NOT NULL DEFAULT '',
+  banner TEXT
+);
+
+CREATE TABLE resources (
+  id TEXT PRIMARY KEY NOT NULL,
+  slug TEXT UNIQUE NOT NULL,
+  title TEXT NOT NULL,
+  version TEXT NOT NULL DEFAULT '',
+  submitted_by TEXT NOT NULL,
+  original_by TEXT,
+  recreation_by TEXT,
+  description TEXT NOT NULL DEFAULT '',
+  category TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT '',
+  tags TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(tags)),
+  file_types TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(file_types)),
+  cover_key TEXT,
+  download_key TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  from_mod TEXT,
+  cover_url TEXT,
+  download_url TEXT,
+  submitted_by_user_id TEXT REFERENCES "user" (id) ON DELETE SET NULL,
+  alternate_downloads TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(alternate_downloads))
+);
+
+CREATE INDEX resources_created_at_idx ON resources (created_at DESC);
+CREATE INDEX resources_updated_at_idx ON resources (updated_at DESC);
+CREATE INDEX resources_category_idx ON resources (category);
+CREATE INDEX resources_status_idx ON resources (status);
+CREATE INDEX resources_submitted_by_user_id_idx ON resources (submitted_by_user_id);
+
+CREATE TABLE "session" (
+  id TEXT NOT NULL PRIMARY KEY,
+  expiresAt DATE NOT NULL,
+  token TEXT NOT NULL UNIQUE,
+  createdAt DATE NOT NULL,
+  updatedAt DATE NOT NULL,
+  ipAddress TEXT,
+  userAgent TEXT,
+  userId TEXT NOT NULL REFERENCES "user" (id) ON DELETE CASCADE
+);
+CREATE INDEX session_userId_idx ON "session" (userId);
+
+CREATE TABLE "account" (
+  id TEXT NOT NULL PRIMARY KEY,
+  accountId TEXT NOT NULL,
+  providerId TEXT NOT NULL,
+  userId TEXT NOT NULL REFERENCES "user" (id) ON DELETE CASCADE,
+  accessToken TEXT,
+  refreshToken TEXT,
+  idToken TEXT,
+  accessTokenExpiresAt DATE,
+  refreshTokenExpiresAt DATE,
+  scope TEXT,
+  password TEXT,
+  createdAt DATE NOT NULL,
+  updatedAt DATE NOT NULL
+);
+CREATE INDEX account_userId_idx ON "account" (userId);
+
+CREATE TABLE "verification" (
+  id TEXT NOT NULL PRIMARY KEY,
+  identifier TEXT NOT NULL,
+  value TEXT NOT NULL,
+  expiresAt DATE NOT NULL,
+  createdAt DATE NOT NULL,
+  updatedAt DATE NOT NULL
+);
+CREATE INDEX verification_identifier_idx ON "verification" (identifier);
+
+CREATE TABLE resource_ratings (
+  resource_id TEXT NOT NULL REFERENCES resources (id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES "user" (id) ON DELETE CASCADE,
+  rating REAL NOT NULL CHECK (
+    rating >= 0.5 AND rating <= 5 AND rating * 2 = CAST(rating * 2 AS INTEGER)
+  ),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  PRIMARY KEY (resource_id, user_id)
+);
+CREATE INDEX resource_ratings_user_id_idx ON resource_ratings (user_id);
+
+CREATE TABLE site_admins (
+  user_id TEXT PRIMARY KEY NOT NULL
+);
+INSERT INTO site_admins (user_id) VALUES
+  ('R78Vlok05SHyIsotnJawi4aOCE4YdzCG'),
+  ('t84aWRoiowk902k2aI6dS1WmMlCHt9ba');
+
+CREATE TABLE site_settings (
+  key TEXT PRIMARY KEY NOT NULL,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+INSERT INTO site_settings (key, value) VALUES
+  ('auto_approval', 'false'),
+  ('submissions_locked', 'false');
+
