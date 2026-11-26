@@ -1,4 +1,4 @@
-const apiKeys = ["q", "type", "category", "fileType", "sort", "page", "limit"] as const
+const apiKeys = ["q", "type", "category", "fileType", "minRating", "sort", "page", "limit"] as const
 
 export function buildResourcesApiUrl(params: URLSearchParams) {
   const query = new URLSearchParams()

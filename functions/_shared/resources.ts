@@ -8,6 +8,8 @@ export interface ResourceRow {
   account_submitter_name?: string | null
   account_submitter_image?: string | null
   account_submitter_username?: string | null
+  rating_average?: number | null
+  rating_count?: number | null
   from_mod: string | null
   original_by: string | null
   recreation_by: string | null
@@ -47,6 +49,8 @@ export function toResource(row: ResourceRow) {
     submittedByUserId: row.submitted_by_user_id,
     submittedByUsername: row.account_submitter_username,
     submittedByImage: row.account_submitter_image ?? null,
+    ratingAverage: row.rating_average == null ? null : Number(row.rating_average),
+    ratingCount: Number(row.rating_count ?? 0),
     fromMod: row.from_mod,
     originalBy: row.original_by,
     recreationBy: row.recreation_by,

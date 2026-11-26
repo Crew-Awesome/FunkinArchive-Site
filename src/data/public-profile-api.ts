@@ -1,7 +1,9 @@
 import type { PublicProfile, PublicProfilePreview } from "@/data/resources"
 
-export async function fetchPublicProfile(userId: string, signal?: AbortSignal): Promise<PublicProfile> {
-  const response = await fetch(`/api/users/${encodeURIComponent(userId)}`, {
+export async function fetchPublicProfile(username: string, params = new URLSearchParams(), signal?: AbortSignal): Promise<PublicProfile> {
+  const query = new URLSearchParams(params)
+  const search = query.toString()
+  const response = await fetch(`/api/users/${encodeURIComponent(username)}${search ? `?${search}` : ""}`, {
     signal,
     headers: { Accept: "application/json" },
   })

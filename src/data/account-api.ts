@@ -3,6 +3,10 @@ import type { ResourceListing, ResourceSubmissionInput } from "@/data/resources"
 export interface AccountResourcesResult {
   resources: ResourceListing[]
   total: number
+  page: number
+  pageSize: number
+  pageCount: number
+  facets: { types: string[] }
 }
 
 export interface AccountProfileUpdate {
@@ -17,11 +21,12 @@ async function getErrorMessage(response: Response) {
   return result?.message ?? `Request failed (${response.status})`
 }
 
-export async function fetchAccountResources(signal?: AbortSignal): Promise<AccountResourcesResult> {
-  const response = await fetch("/api/account/resources", { signal, credentials: "same-origin" })
+export async function fetchAccountResources(params = new URLSearchParams(), signal?: AbortSignal): Promise<AccountResourcesResult> {
+  const query = new URLSearchParams(params).toString()
+  const response = await fetch(`/api/account/resources${query ? `?${query}` : ""}`, { signal, credentials: "same-origin" })
   if (!response.ok) throw new Error(await getErrorMessage(response))
   const result = await response.json() as AccountResourcesResult
-  return { resources: result.resources, total: Number(result.total ?? result.resources.length) }
+  return { ...result, total: Number(result.total ?? result.resources.length) }
 }
 
 export async function fetchAccountProfile(signal?: AbortSignal): Promise<{ bio: string; banner: string | null; username: string; usernameChangeAvailableAt: string | null }> {

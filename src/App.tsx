@@ -13,15 +13,18 @@ import {
   PanelLeftOpen,
   Settings2,
   UserRound,
+  UsersRound,
 } from "lucide-react"
 import { BrowsePage } from "@/components/browse-page"
 import { ResourceDetailsPage } from "@/components/resource-details-page"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { adminNavigationPreferenceEvent, adminNavigationPreferenceKey, readAdminNavigationPreference } from "@/lib/admin-navigation-preference"
 import { profileInitials } from "@/lib/profile"
 
 const AuthPage = lazy(() => import("@/components/auth-page").then(({ AuthPage: page }) => ({ default: page })))
 const AccountPage = lazy(() => import("@/components/account-page").then(({ AccountPage: page }) => ({ default: page })))
+const PeoplePage = lazy(() => import("@/components/people-page").then(({ PeoplePage: page }) => ({ default: page })))
 const PublicProfilePage = lazy(() => import("@/components/public-profile-page").then(({ PublicProfilePage: page }) => ({ default: page })))
 const SubmitPage = lazy(() => import("@/components/submit-page").then(({ SubmitPage: page }) => ({ default: page })))
 const AdminPage = lazy(() => import("@/components/admin-page").then(({ AdminPage: page }) => ({ default: page })))
@@ -29,6 +32,7 @@ const SettingsPage = lazy(() => import("@/components/settings-page").then(({ Set
 
 const primaryLinks = [
   { label: "Browse", to: "/", icon: FolderOpen },
+  { label: "People", to: "/people", icon: UsersRound },
   { label: "Submit", to: "/submit", icon: FilePlus2 },
 ]
 
@@ -103,6 +107,7 @@ function Brand({ compact = false }: { compact?: boolean }) {
 function NavItems({ onNavigate, compact = false }: { onNavigate?: () => void; compact?: boolean }) {
   const [signedIn, setSignedIn] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [hideAdminPages, setHideAdminPages] = useState(false)
   const [accountUser, setAccountUser] = useState<{ id: string; name: string; image: string | null; username: string | null } | null>(null)
 
   useEffect(() => {
@@ -121,13 +126,19 @@ function NavItems({ onNavigate, compact = false }: { onNavigate?: () => void; co
             .catch(() => {})
           void fetch("/api/admin/check", { credentials: "same-origin" })
             .then((response) => response.ok ? response.json() as Promise<{ isAdmin?: boolean }> : null)
-            .then((result) => { if (active) setIsAdmin(result?.isAdmin === true) })
-            .catch(() => { if (active) setIsAdmin(false) })
+            .then((result) => {
+              if (!active) return
+              const admin = result?.isAdmin === true
+              setIsAdmin(admin)
+              setHideAdminPages(admin ? readAdminNavigationPreference(user.id) : false)
+            })
+            .catch(() => { if (active) { setIsAdmin(false); setHideAdminPages(false) } })
         } else {
           setIsAdmin(false)
+          setHideAdminPages(false)
         }
       })
-      .catch(() => { if (active) { setSignedIn(false); setAccountUser(null) } })
+      .catch(() => { if (active) { setSignedIn(false); setIsAdmin(false); setHideAdminPages(false); setAccountUser(null) } })
     function handleProfileUpdate(event: Event) {
       const detail = (event as CustomEvent<{ name?: string; image?: string | null; username?: string }>).detail
       if (detail) setAccountUser((current) => current ? { ...current, ...detail } : current)
@@ -139,9 +150,28 @@ function NavItems({ onNavigate, compact = false }: { onNavigate?: () => void; co
     }
   }, [])
 
+  useEffect(() => {
+    if (!accountUser) return
+    const userId = accountUser.id
+    const storageKey = adminNavigationPreferenceKey(userId)
+    function handlePreference(event: Event) {
+      const detail = (event as CustomEvent<{ userId: string; hidden: boolean }>).detail
+      if (detail?.userId === userId) setHideAdminPages(detail.hidden)
+    }
+    function handleStorage(event: StorageEvent) {
+      if (event.key === storageKey) setHideAdminPages(readAdminNavigationPreference(userId))
+    }
+    window.addEventListener(adminNavigationPreferenceEvent, handlePreference)
+    window.addEventListener("storage", handleStorage)
+    return () => {
+      window.removeEventListener(adminNavigationPreferenceEvent, handlePreference)
+      window.removeEventListener("storage", handleStorage)
+    }
+  }, [accountUser?.id])
+
   async function handleSignOut() {
     const response = await fetch("/api/auth/sign-out", { method: "POST" })
-    if (response.ok) { setSignedIn(false); setIsAdmin(false); setAccountUser(null) }
+    if (response.ok) { setSignedIn(false); setIsAdmin(false); setHideAdminPages(false); setAccountUser(null) }
   }
 
   return (
@@ -152,7 +182,7 @@ function NavItems({ onNavigate, compact = false }: { onNavigate?: () => void; co
             <Icon size={18} strokeWidth={1.8} aria-hidden="true" /><span>{label}</span>
           </NavLink>
         ))}
-        {isAdmin && <NavLink to="/admin" onClick={onNavigate} title={compact ? "Admin" : undefined} aria-label={compact ? "Admin" : undefined} className={({ isActive }) => `nav-link${isActive ? " is-active" : ""}`}>
+        {isAdmin && !hideAdminPages && <NavLink to="/admin" onClick={onNavigate} title={compact ? "Admin" : undefined} aria-label={compact ? "Admin" : undefined} className={({ isActive }) => `nav-link${isActive ? " is-active" : ""}`}>
           <ShieldCheck size={18} strokeWidth={1.8} aria-hidden="true" /><span>Admin</span>
         </NavLink>}
         {signedIn && <NavLink to="/settings" onClick={onNavigate} title={compact ? "Settings" : undefined} aria-label={compact ? "Settings" : undefined} className={({ isActive }) => `nav-link${isActive ? " is-active" : ""}`}>
@@ -242,6 +272,7 @@ function AppShell({ scheme, onToggleScheme }: { scheme: ColorScheme; onToggleSch
       <main id="main-content" className="app-main" tabIndex={-1}>
         <Routes>
           <Route path="/" element={<BrowsePage />} />
+          <Route path="/people" element={<Suspense fallback={<section className="people-page" aria-busy="true">Loading people…</section>}><PeoplePage /></Suspense>} />
           <Route path="/resources/:slug/edit" element={<Suspense fallback={<section className="submit-page" aria-busy="true">Loading resource editor…</section>}><SubmitPage /></Suspense>} />
           <Route path="/resources/:slug" element={<ResourceDetailsPage />} />
           <Route path="/submit" element={<Suspense fallback={<section className="submit-page" aria-busy="true">Loading submission form…</section>}><SubmitPage /></Suspense>} />

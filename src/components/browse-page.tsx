@@ -12,6 +12,8 @@ import {
 import { getResourceTypes, type ResourceListing, type ResourcesResponse, type SortOrder } from "@/data/resources"
 import { fetchResources } from "@/data/resources-api"
 import { ResourceTypePills } from "@/components/resource-type-pills"
+import { StarMeter } from "@/components/resource-rating"
+import { StarRatingFilter } from "@/components/star-rating-filter"
 import { SubmitterHoverCard } from "@/components/submitter-hover-card"
 import { ResourceTypeIcon } from "@/components/resource-type-icon"
 import { Button } from "@/components/ui/button"
@@ -52,6 +54,7 @@ function ResourceCard({ resource }: { resource: ResourceListing }) {
               <ResourceTypePills className="resource-type-pills-card" types={getResourceTypes(resource)} />
             </div>
           </div>
+          {resource.ratingAverage != null && resource.ratingCount ? <p className="profile-resource-rating"><StarMeter value={resource.ratingAverage} /><span>{resource.ratingAverage.toFixed(1)} · {resource.ratingCount}</span></p> : null}
           <p className="resource-card-submitted">Original By <span>{resource.originalBy?.trim() || "Not listed"}</span></p>
           {resource.description && <p className="resource-card-description">{resource.description}</p>}
         </div>
@@ -60,8 +63,7 @@ function ResourceCard({ resource }: { resource: ResourceListing }) {
   )
 }
 
-function SelectField({ label, value, options, onChange, typeOptions = false }: { label: string; value: string; options: string[]; onChange: (value: string) => void; typeOptions?: boolean }) {
-  const allLabel = `All ${label.toLowerCase()}s`
+function SelectField({ label, value, options, onChange, typeOptions = false, allLabel }: { label: string; value: string; options: string[]; onChange: (value: string) => void; typeOptions?: boolean; allLabel?: string }) {
   return (
     <label className="filter-field">
       <span className="sr-only">{label}</span>
@@ -71,22 +73,25 @@ function SelectField({ label, value, options, onChange, typeOptions = false }: {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">{allLabel}</SelectItem>
-          {options.map((option) => <SelectItem key={option} value={option}>{typeOptions && <ResourceTypeIcon type={option} />}{option}</SelectItem>)}
+          <SelectItem value="all">{allLabel ?? `All ${label.toLowerCase()}s`}</SelectItem>
+          {options.map((option) => <SelectItem key={option} value={option}>{typeOptions && <ResourceTypeIcon type={option} />}{label === "Minimum rating" ? `${option}${option === "5" ? " stars" : "+ stars"}` : option}</SelectItem>)}
         </SelectContent>
       </Select>
     </label>
   )
 }
 
-function BrowseFilters({ facets, type, onTypeChange }: {
+function BrowseFilters({ facets, type, minRating, onTypeChange, onRatingChange }: {
   facets: ResourcesResponse["facets"]
   type: string
+  minRating: string
   onTypeChange: (value: string) => void
+  onRatingChange: (value: string) => void
 }) {
   return (
     <div className="filter-selects">
       <SelectField label="Type" value={type} options={facets.types} onChange={onTypeChange} typeOptions />
+      <StarRatingFilter value={minRating === "all" ? null : Number(minRating)} onChange={(value) => onRatingChange(value == null ? "all" : String(value))} />
     </div>
   )
 }
@@ -140,8 +145,9 @@ export function BrowsePage() {
   const requestKey = `${queryString}:${retryCount}`
   const query = params.get("q") ?? ""
   const type = params.get("type") ?? params.get("fileType") ?? params.get("category") ?? "all"
+  const minRating = params.get("minRating") ?? "all"
   const sortParam = params.get("sort")
-  const validSortOrders: SortOrder[] = ["newest", "oldest", "updated", "least-updated", "alphabetical", "reverse-alphabetical"]
+  const validSortOrders: SortOrder[] = ["newest", "oldest", "updated", "least-updated", "alphabetical", "reverse-alphabetical", "highest-rated", "lowest-rated", "most-rated", "fewest-ratings"]
   const sortOrder: SortOrder = validSortOrders.includes(sortParam as SortOrder) ? sortParam as SortOrder : "newest"
   const loading = loadedRequestKey !== requestKey
   const activeError = loadedRequestKey === requestKey ? error : undefined
@@ -243,19 +249,20 @@ export function BrowsePage() {
     else next.delete("type")
     setParams(next, { replace: true })
   }
+  const updateRating = (value: string) => updateParam("minRating", value)
   const resetFilters = () => setParams(new URLSearchParams(), { replace: true })
-  const activeFilterCount = Number(type !== "all")
+  const activeFilterCount = Number(type !== "all") + Number(minRating !== "all")
   const facets = data?.facets ?? emptyFacets()
-  const noResults = data?.total === 0 && (query.trim().length > 0 || type !== "all")
-  const reverseSort: Record<SortOrder, SortOrder> = {
-    newest: "oldest",
-    oldest: "newest",
-    updated: "least-updated",
-    "least-updated": "updated",
-    alphabetical: "reverse-alphabetical",
-    "reverse-alphabetical": "alphabetical",
-  }
-  const ascendingSort = sortOrder === "oldest" || sortOrder === "least-updated" || sortOrder === "reverse-alphabetical"
+  const noResults = data?.total === 0 && (query.trim().length > 0 || type !== "all" || minRating !== "all")
+  const sortDirections = {
+    added: { ascending: "oldest", descending: "newest" },
+    updated: { ascending: "least-updated", descending: "updated" },
+    title: { ascending: "alphabetical", descending: "reverse-alphabetical" },
+    rating: { ascending: "lowest-rated", descending: "highest-rated" },
+    ratings: { ascending: "fewest-ratings", descending: "most-rated" },
+  } as const
+  const sortBy = (Object.entries(sortDirections).find(([, directions]) => directions.ascending === sortOrder || directions.descending === sortOrder)?.[0] ?? "added") as keyof typeof sortDirections
+  const ascendingSort = sortOrder === "oldest" || sortOrder === "least-updated" || sortOrder === "reverse-alphabetical" || sortOrder === "lowest-rated" || sortOrder === "fewest-ratings"
 
   return (
     <div className="browse-page">
@@ -269,7 +276,7 @@ export function BrowsePage() {
 
       <section className="browse-controls" aria-label="Browse controls">
         <div className="desktop-filter-controls">
-          <BrowseFilters facets={facets} type={type} onTypeChange={updateType} />
+          <BrowseFilters facets={facets} type={type} minRating={minRating} onTypeChange={updateType} onRatingChange={updateRating} />
         </div>
         <div className="browse-control-actions">
           <Sheet>
@@ -279,28 +286,27 @@ export function BrowsePage() {
             <SheetContent side="right" className="mobile-filter-sheet">
               <SheetHeader>
                 <SheetTitle>Filters</SheetTitle>
-                <SheetDescription>Refine by resource type. Search also checks tags.</SheetDescription>
+              <SheetDescription>Refine by resource type or minimum star rating. Search also checks tags.</SheetDescription>
               </SheetHeader>
               <div className="mobile-filter-fields">
-                <BrowseFilters facets={facets} type={type} onTypeChange={updateType} />
+                <BrowseFilters facets={facets} type={type} minRating={minRating} onTypeChange={updateType} onRatingChange={updateRating} />
               </div>
               <div className="mobile-filter-footer"><Button variant="outline" onClick={resetFilters}>Reset filters</Button></div>
             </SheetContent>
           </Sheet>
           <div className="sort-field">
             <span className="sr-only">Sort resources</span>
-            <Button className="sort-direction" variant="outline" size="icon-sm" aria-label={`Switch to ${ascendingSort ? "descending" : "ascending"} order`} title={`Switch to ${ascendingSort ? "descending" : "ascending"} order`} onClick={() => updateParam("sort", reverseSort[sortOrder])}>
+            <Button className="sort-direction" variant="outline" size="icon-sm" aria-label={`Switch to ${ascendingSort ? "descending" : "ascending"} order`} title={`Switch to ${ascendingSort ? "descending" : "ascending"} order`} onClick={() => updateParam("sort", sortDirections[sortBy][ascendingSort ? "descending" : "ascending"])}>
               {ascendingSort ? <ArrowUpWideNarrow size={15} aria-hidden="true" /> : <ArrowDownWideNarrow size={15} aria-hidden="true" />}
             </Button>
-            <Select value={sortOrder} onValueChange={(value) => { if (value) updateParam("sort", value) }}>
+            <Select value={sortBy} onValueChange={(value) => { if (value && value in sortDirections) updateParam("sort", sortDirections[value as keyof typeof sortDirections].descending) }}>
             <SelectTrigger aria-label="Sort resources"><SelectValue /></SelectTrigger>
               <SelectContent className="sort-menu">
-                <SelectItem value="newest">Newest</SelectItem>
-                <SelectItem value="oldest">Oldest</SelectItem>
-                <SelectItem value="updated">Recently updated</SelectItem>
-                <SelectItem value="least-updated">Least recently updated</SelectItem>
-                <SelectItem value="alphabetical">Title A–Z</SelectItem>
-                <SelectItem value="reverse-alphabetical">Title Z–A</SelectItem>
+                <SelectItem value="added">Added</SelectItem>
+                <SelectItem value="updated">Updated</SelectItem>
+                <SelectItem value="title">Title</SelectItem>
+                <SelectItem value="rating">Rating</SelectItem>
+                <SelectItem value="ratings">Ratings</SelectItem>
               </SelectContent>
             </Select>
           </div>

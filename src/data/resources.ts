@@ -7,6 +7,8 @@ export interface ResourceListing {
   submittedByUserId: string | null
   submittedByUsername?: string | null
   submittedByImage: string | null
+  ratingAverage?: number | null
+  ratingCount?: number
   fromMod: string | null
   originalBy: string | null
   recreationBy: string | null
@@ -50,6 +52,10 @@ export interface PublicProfile {
   bio: string
   resources: ResourceListing[]
   total: number
+  page: number
+  pageSize: number
+  pageCount: number
+  facets: ResourceFacets
 }
 
 export type PublicProfilePreview = Pick<PublicProfile, "id" | "username" | "name" | "image" | "banner" | "bio" | "total">
@@ -68,7 +74,7 @@ export interface ResourceSubmissionInput {
   tags: string[]
 }
 
-export type SortOrder = "newest" | "oldest" | "updated" | "least-updated" | "alphabetical" | "reverse-alphabetical"
+export type SortOrder = "newest" | "oldest" | "updated" | "least-updated" | "alphabetical" | "reverse-alphabetical" | "highest-rated" | "lowest-rated" | "most-rated" | "fewest-ratings"
 
 export const knownResourceTypes = ["Chroms", "DWPs", "FLAs", "FLMs", "FLPs", "MIDIs", "SF2s", "Other"] as const
 

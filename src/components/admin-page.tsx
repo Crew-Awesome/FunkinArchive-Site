@@ -1,9 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react"
 import { Link } from "react-router-dom"
-import { ArrowDown, ArrowUp, Check, Clock3, ExternalLink, LoaderCircle, LockKeyhole, RefreshCw, ShieldCheck, X } from "lucide-react"
+import { ArrowDown, ArrowUp, Check, Clock3, ExternalLink, LoaderCircle, LockKeyhole, RefreshCw, Search, ShieldCheck, Star, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ResourceTypeIcon } from "@/components/resource-type-icon"
+import { StarRatingFilter } from "@/components/star-rating-filter"
 import type { ResourceListing } from "@/data/resources"
 
 type ReviewStatus = "pending" | "accepted" | "rejected"
@@ -15,6 +18,7 @@ type AdminResourcesResult = {
   pageSize: number
   pageCount: number
   counts: Record<ReviewStatus, number>
+  facets: { types: string[] }
 }
 
 const reviewTabs: { value: ReviewStatus; label: string }[] = [
@@ -42,6 +46,11 @@ export function AdminPage() {
   const [authorized, setAuthorized] = useState<boolean | null>(null)
   const [status, setStatus] = useState<ReviewStatus>("pending")
   const [page, setPage] = useState(1)
+  const [query, setQuery] = useState("")
+  const [debouncedQuery, setDebouncedQuery] = useState("")
+  const [type, setType] = useState("all")
+  const [minRating, setMinRating] = useState("all")
+  const [sort, setSort] = useState("newest")
   const [data, setData] = useState<AdminResourcesResult | null>(null)
   const [settings, setSettings] = useState<ModerationSettings | null>(null)
   const [draftSettings, setDraftSettings] = useState<ModerationSettings | null>(null)
@@ -59,6 +68,11 @@ export function AdminPage() {
   }, [])
 
   useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedQuery(query.trim()), 250)
+    return () => window.clearTimeout(timeout)
+  }, [query])
+
+  useEffect(() => {
     let active = true
     void (async () => {
       try {
@@ -69,8 +83,13 @@ export function AdminPage() {
         setAuthorized(access.isAdmin === true)
         if (!access.isAdmin) { setLoading(false); return }
 
+        const resourceParams = new URLSearchParams({ status, page: String(page) })
+        if (debouncedQuery) resourceParams.set("q", debouncedQuery)
+        if (type !== "all") resourceParams.set("type", type)
+        if (minRating !== "all") resourceParams.set("minRating", minRating)
+        if (sort !== "newest") resourceParams.set("sort", sort)
         const [resourcesResponse, settingsResponse] = await Promise.all([
-          fetch(`/api/admin/resources?status=${status}&page=${page}`, { credentials: "same-origin" }),
+          fetch(`/api/admin/resources?${resourceParams}`, { credentials: "same-origin" }),
           fetch("/api/admin/settings", { credentials: "same-origin" }),
         ])
         if (!resourcesResponse.ok) throw new Error(await readError(resourcesResponse))
@@ -94,7 +113,7 @@ export function AdminPage() {
       }
     })()
     return () => { active = false }
-  }, [status, page, reload])
+  }, [status, page, debouncedQuery, type, minRating, sort, reload])
 
   async function changeStatus(resource: ResourceListing, nextStatus: ReviewStatus) {
     setSavingResourceId(resource.id)
@@ -144,6 +163,23 @@ export function AdminPage() {
   }
 
   const settingsChanged = Boolean(settings && draftSettings && (settings.autoApproval !== draftSettings.autoApproval || settings.submissionsLocked !== draftSettings.submissionsLocked))
+  const hasActiveFilters = Boolean(query.trim() || type !== "all" || minRating !== "all" || sort !== "newest")
+  const hasRestrictingFilters = Boolean(query.trim() || type !== "all" || minRating !== "all")
+  function changeAdminFilter<T>(setter: (value: T) => void, value: T) {
+    setter(value)
+    setPage(1)
+    setLoading(true)
+    setError("")
+  }
+  function resetAdminFilters() {
+    setQuery("")
+    setType("all")
+    setMinRating("all")
+    setSort("newest")
+    setPage(1)
+    setLoading(true)
+    setError("")
+  }
 
   return (
     <section className="admin-page">
@@ -163,12 +199,45 @@ export function AdminPage() {
             </button>)}
           </div>
 
+          <search className="admin-review-controls" aria-label="Search and filter submissions">
+            <label className="admin-search-field">
+              <span className="sr-only">Search submissions by title, submitter, or creator</span>
+              <Search size={17} aria-hidden="true" />
+              <Input type="search" name="q" value={query} onChange={(event) => changeAdminFilter(setQuery, event.target.value)} placeholder="Search submissions" autoComplete="off" />
+              {query && <Button type="button" variant="ghost" size="icon-sm" aria-label="Clear search" onClick={() => changeAdminFilter(setQuery, "")}><X size={15} /></Button>}
+            </label>
+            <label className="admin-filter-select">
+              <span className="sr-only">Filter by type</span>
+              <Select value={type} onValueChange={(value) => { if (value) changeAdminFilter(setType, value) }}>
+                <SelectTrigger aria-label="Filter by type"><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="all">All types</SelectItem>{(data?.facets.types ?? []).map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
+              </Select>
+            </label>
+            <div className="admin-filter-select admin-rating-select"><StarRatingFilter value={minRating === "all" ? null : Number(minRating)} onChange={(value) => changeAdminFilter(setMinRating, value == null ? "all" : String(value))} /></div>
+            <label className="admin-filter-select admin-sort-select">
+              <span className="sr-only">Sort submissions</span>
+              <Select value={sort} onValueChange={(value) => { if (value) changeAdminFilter(setSort, value) }}>
+                <SelectTrigger aria-label="Sort submissions"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest</SelectItem>
+                  <SelectItem value="oldest">Oldest</SelectItem>
+                  <SelectItem value="alphabetical">Title A–Z</SelectItem>
+                  <SelectItem value="reverse-alphabetical">Title Z–A</SelectItem>
+                  <SelectItem value="highest-rated">Highest rated</SelectItem>
+                  <SelectItem value="lowest-rated">Lowest rated</SelectItem>
+                  <SelectItem value="most-rated">Most rated</SelectItem>
+                </SelectContent>
+              </Select>
+            </label>
+            {hasActiveFilters && <Button className="admin-clear-filters" variant="ghost" size="sm" onClick={resetAdminFilters}>Clear</Button>}
+          </search>
+
           {loading ? <div className="admin-loading" role="status"><LoaderCircle size={17} className="admin-spin" aria-hidden="true" />Loading submissions…</div>
             : data?.resources.length ? <>
               <div className="admin-table-scroll" role="region" aria-label="Submitted resources" tabIndex={0}>
                 <table className="admin-table">
                   <caption className="sr-only">Resources submitted for FunkinArchive</caption>
-                  <thead><tr><th scope="col">Resource</th><th scope="col">Submitted by</th><th scope="col">Type</th><th scope="col">Submitted</th><th scope="col">Approval</th><th scope="col"><span className="sr-only">Actions</span></th></tr></thead>
+                  <thead><tr><th scope="col">Resource</th><th scope="col">Submitted by</th><th scope="col">Type</th><th scope="col">Rating</th><th scope="col">Submitted</th><th scope="col">Approval</th><th scope="col"><span className="sr-only">Actions</span></th></tr></thead>
                   <tbody>{data.resources.map((resource) => {
                     const busy = savingResourceId === resource.id
                     return <tr key={resource.id}>
@@ -188,6 +257,7 @@ export function AdminPage() {
                         <span className="admin-submitter-avatar">{resource.submittedByImage ? <img src={resource.submittedByImage} alt="" /> : resource.submittedBy.slice(0, 1).toUpperCase()}</span>{resource.submittedBy}
                       </Link> : <span className="admin-submitter"><span className="admin-submitter-avatar">{resource.submittedBy.slice(0, 1).toUpperCase()}</span>{resource.submittedBy}</span>}</td>
                       <td data-label="Type"><span className="admin-type"><ResourceTypeIcon type={resource.fileType || resource.category || "Other"} />{resource.fileType || resource.category || "Other"}</span></td>
+                      <td data-label="Rating">{resource.ratingAverage != null && resource.ratingCount ? <span className="admin-rating"><Star size={13} fill="currentColor" aria-hidden="true" />{resource.ratingAverage.toFixed(1)} <small>({resource.ratingCount})</small></span> : <span className="admin-no-rating">—</span>}</td>
                       <td data-label="Submitted">{formatDate(resource.createdAt)}</td>
                       <td data-label="Approval"><span className={`admin-status admin-status-${resource.status.trim().toLocaleLowerCase() || "accepted"}`}>{statusLabel(resource)}</span></td>
                       <td data-label="Actions"><div className="admin-actions">
@@ -205,7 +275,7 @@ export function AdminPage() {
                 <span>Page {data.page} of {data.pageCount}</span>
                 <div><Button variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => { setError(""); setLoading(true); setPage((current) => Math.max(1, current - 1)) }}><ArrowUp size={14} aria-hidden="true" />Newer</Button><Button variant="outline" size="sm" disabled={page >= data.pageCount || loading} onClick={() => { setError(""); setLoading(true); setPage((current) => Math.min(data.pageCount, current + 1)) }}>Older<ArrowDown size={14} aria-hidden="true" /></Button></div>
               </nav>}
-            </> : <div className="admin-empty"><span><Check size={18} aria-hidden="true" /></span><h3>{status === "pending" ? "Nothing to review" : `No ${status === "accepted" ? "approved" : "rejected"} resources`}</h3></div>}
+            </> : <div className="admin-empty"><span><Check size={18} aria-hidden="true" /></span><h3>{hasRestrictingFilters ? "No submissions match these filters" : status === "pending" ? "Nothing to review" : `No ${status === "accepted" ? "approved" : "rejected"} resources`}</h3>{hasActiveFilters && <Button variant="outline" size="sm" onClick={resetAdminFilters}>Clear filters</Button>}</div>}
         </section>
 
         <aside className="admin-settings-panel" aria-label="Submission settings">
