@@ -121,7 +121,7 @@ export function ResourceDetailsPage() {
             <dl className="details-metadata">
               <div className="details-meta-submitter"><dt>Submitted By</dt><dd>
                 {resource.submittedByUserId ? (
-                  <Link className="details-submitter-pill" to={`/users/${encodeURIComponent(resource.submittedByUserId)}`} aria-describedby={profilePreviewId} onFocus={() => setSubmitterFocused(true)} onBlur={() => setSubmitterFocused(false)}>
+                  <Link className="details-submitter-pill" to={`/users/${encodeURIComponent(resource.submittedByUsername ?? resource.submittedByUserId)}`} aria-describedby={profilePreviewId} onFocus={() => setSubmitterFocused(true)} onBlur={() => setSubmitterFocused(false)}>
                     <SubmitterHoverCard userId={resource.submittedByUserId} name={resource.submittedBy} image={resource.submittedByImage} previewId={profilePreviewId} className="details-submitter-hovercard" focused={submitterFocused}>
                       <span className="details-submitter-avatar" aria-hidden="true">
                         {resource.submittedByImage ? <img src={resource.submittedByImage} alt="" /> : resource.submittedBy.slice(0, 1).toUpperCase()}

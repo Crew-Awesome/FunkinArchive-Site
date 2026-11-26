@@ -67,7 +67,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const currentPage = pageCount > 0 ? Math.min(page, pageCount) : 1
   const offset = (currentPage - 1) * pageSize
   const rows = await env.DB.prepare(`
-    SELECT resources.*, submitter.name AS account_submitter_name, submitter.image AS account_submitter_image
+    SELECT resources.*, submitter.name AS account_submitter_name, submitter.image AS account_submitter_image, submitter.username AS account_submitter_username
     FROM resources
     LEFT JOIN "user" AS submitter ON resources.submitted_by_user_id = submitter.id
     ${where}

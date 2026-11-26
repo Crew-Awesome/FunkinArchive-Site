@@ -4,6 +4,19 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      try {
+        const savedScheme = localStorage.getItem("color-scheme")
+        const override = savedScheme === "light" || savedScheme === "dark" ? savedScheme : null
+        const dark = override ? override === "dark" : matchMedia("(prefers-color-scheme: dark)").matches
+        document.documentElement.classList.toggle("dark", dark)
+        document.documentElement.classList.toggle("light", !dark)
+        document.querySelector('meta[name="color-scheme"]').content = override ?? "light dark"
+      } catch {
+        // The CSS media query remains the fallback when storage is unavailable.
+      }
+    </script>
     <meta name="description" content="Browse Friday Night Funkin' project files, charts, music, and other resources." />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="FunkinArchive" />

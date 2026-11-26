@@ -184,7 +184,7 @@ export function AdminPage() {
                           </div>
                         </div>
                       </td>
-                      <td data-label="Submitted by">{resource.submittedByUserId ? <Link className="admin-submitter" to={`/users/${encodeURIComponent(resource.submittedByUserId)}`}>
+                      <td data-label="Submitted by">{resource.submittedByUserId ? <Link className="admin-submitter" to={`/users/${encodeURIComponent(resource.submittedByUsername ?? resource.submittedByUserId)}`}>
                         <span className="admin-submitter-avatar">{resource.submittedByImage ? <img src={resource.submittedByImage} alt="" /> : resource.submittedBy.slice(0, 1).toUpperCase()}</span>{resource.submittedBy}
                       </Link> : <span className="admin-submitter"><span className="admin-submitter-avatar">{resource.submittedBy.slice(0, 1).toUpperCase()}</span>{resource.submittedBy}</span>}</td>
                       <td data-label="Type"><span className="admin-type"><ResourceTypeIcon type={resource.fileType || resource.category || "Other"} />{resource.fileType || resource.category || "Other"}</span></td>

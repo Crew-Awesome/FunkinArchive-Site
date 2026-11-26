@@ -26,27 +26,27 @@ function PublicSubmissionCard({ resource }: { resource: PublicProfile["resources
 }
 
 export function PublicProfilePage() {
-  const { userId } = useParams<{ userId: string }>()
+  const { username } = useParams<{ username: string }>()
   const { data: authData, isPending: sessionPending } = authClient.useSession()
   const [profile, setProfile] = useState<PublicProfile>()
   const [error, setError] = useState<string>()
-  const [loadedId, setLoadedId] = useState<string>()
-  const ownProfile = Boolean(userId && authData?.user?.id === userId)
-  const loading = sessionPending || (!ownProfile && loadedId !== userId)
-  const activeError = loadedId === userId ? error : undefined
+  const [loadedUsername, setLoadedUsername] = useState<string>()
+  const ownProfile = Boolean(profile && authData?.user?.id === profile.id)
+  const loading = sessionPending || loadedUsername !== username
+  const activeError = loadedUsername === username ? error : undefined
 
   useEffect(() => {
-    if (!userId || sessionPending || ownProfile) return
+    if (!username || sessionPending) return
     const controller = new AbortController()
-    fetchPublicProfile(userId, controller.signal)
+    fetchPublicProfile(username, controller.signal)
       .then((result) => { setProfile(result); setError(undefined) })
       .catch((cause: unknown) => {
         if (cause instanceof DOMException && cause.name === "AbortError") return
         setError(cause instanceof Error ? cause.message : "The profile could not be loaded.")
       })
-      .finally(() => { if (!controller.signal.aborted) setLoadedId(userId) })
+      .finally(() => { if (!controller.signal.aborted) setLoadedUsername(username) })
     return () => controller.abort()
-  }, [userId, sessionPending, ownProfile])
+  }, [username, sessionPending])
 
   useEffect(() => {
     document.title = ownProfile ? `${authData?.user?.name ?? "Profile"} - FunkinArchive` : profile ? `${profile.name} - FunkinArchive` : "Profile - FunkinArchive"
@@ -64,11 +64,11 @@ export function PublicProfilePage() {
       <section className="account-profile-card" aria-labelledby="public-profile-name">
         <div className="account-profile-banner">
           {profile.banner && <img src={profile.banner} alt="" />}
-          <div className="account-profile-visual-content">
+        <div className="account-profile-visual-content">
             <div className="account-avatar" aria-hidden="true">
               {profile.image ? <img src={profile.image} alt="" /> : profileInitials(profile.name) || <UserRound size={28} strokeWidth={1.6} />}
             </div>
-            <div className="account-profile-visual-copy"><h1 id="public-profile-name">{profile.name}</h1></div>
+            <div className="account-profile-visual-copy"><h1 id="public-profile-name">{profile.name}</h1><p className="account-profile-username">@{profile.username}</p></div>
           </div>
         </div>
         {profile.bio && <div className="account-profile-details-row"><p className="account-profile-bio">{profile.bio}</p></div>}

@@ -7,6 +7,7 @@ export interface ResourceRow {
   submitted_by_user_id: string | null
   account_submitter_name?: string | null
   account_submitter_image?: string | null
+  account_submitter_username?: string | null
   from_mod: string | null
   original_by: string | null
   recreation_by: string | null
@@ -44,6 +45,7 @@ export function toResource(row: ResourceRow) {
     version: row.version,
     submittedBy: row.account_submitter_name ?? row.submitted_by,
     submittedByUserId: row.submitted_by_user_id,
+    submittedByUsername: row.account_submitter_username,
     submittedByImage: row.account_submitter_image ?? null,
     fromMod: row.from_mod,
     originalBy: row.original_by,

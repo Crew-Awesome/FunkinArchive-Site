@@ -1,5 +1,6 @@
 import { createAuth, type AuthEnv } from "../../_shared/auth"
 import { accountImageKeyFromUrl } from "../../_shared/account-assets"
+import { ensureUsername, usernameChangeAvailableAt } from "../../_shared/usernames"
 
 interface ProfileInput {
   name?: unknown
@@ -13,11 +14,18 @@ export const onRequestGet: PagesFunction<AuthEnv> = async ({ request, env, waitU
   const session = await auth.api.getSession({ headers: request.headers })
   if (!session) return Response.json({ message: "You must be signed in to view your profile." }, { status: 401 })
 
-  const profile = await env.DB.prepare(`SELECT bio, banner FROM "user" WHERE id = ?`)
+  const profile = await env.DB.prepare(`SELECT id, name, username, username_changed_at, bio, banner FROM "user" WHERE id = ?`)
     .bind(session.user.id)
-    .first<{ bio: string; banner: string | null }>()
+    .first<{ id: string; name: string; username: string | null; username_changed_at: string | null; bio: string; banner: string | null }>()
 
-  return Response.json({ bio: profile?.bio ?? "", banner: profile?.banner ?? null }, {
+  const username = await ensureUsername(env.DB, session.user.id, profile?.name ?? session.user.name ?? "Member")
+
+  return Response.json({
+    bio: profile?.bio ?? "",
+    banner: profile?.banner ?? null,
+    username,
+    usernameChangeAvailableAt: usernameChangeAvailableAt(profile?.username_changed_at ?? null),
+  }, {
     headers: { "Cache-Control": "private, no-store" },
   })
 }

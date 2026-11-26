@@ -23,7 +23,7 @@ function optionalUrl(value: unknown): string | null | false {
 async function getOwnedResource(slug: unknown, userId: string, env: Env) {
   if (typeof slug !== "string" || !slug) return null
   return env.DB.prepare(`
-    SELECT resources.*, submitter.name AS account_submitter_name, submitter.image AS account_submitter_image
+    SELECT resources.*, submitter.name AS account_submitter_name, submitter.image AS account_submitter_image, submitter.username AS account_submitter_username
     FROM resources
     LEFT JOIN "user" AS submitter ON resources.submitted_by_user_id = submitter.id
     WHERE resources.slug = ? AND resources.submitted_by_user_id = ?
@@ -133,7 +133,7 @@ export const onRequestPut: PagesFunction<AuthEnv> = async ({ request, env, param
   ).run()
 
   const updatedRow = await env.DB.prepare(`
-    SELECT resources.*, submitter.name AS account_submitter_name, submitter.image AS account_submitter_image
+    SELECT resources.*, submitter.name AS account_submitter_name, submitter.image AS account_submitter_image, submitter.username AS account_submitter_username
     FROM resources
     LEFT JOIN "user" AS submitter ON resources.submitted_by_user_id = submitter.id
     WHERE resources.id = ?

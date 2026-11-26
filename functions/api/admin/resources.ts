@@ -25,7 +25,7 @@ export const onRequestGet: PagesFunction<AuthEnv> = async ({ request, env, waitU
       SUM(CASE WHEN trim(status) = '' OR lower(trim(status)) IN ('accepted', 'approved') THEN 1 ELSE 0 END) AS accepted,
       SUM(CASE WHEN lower(trim(status)) = 'rejected' THEN 1 ELSE 0 END) AS rejected
       FROM resources`).first<{ pending: number | null; accepted: number | null; rejected: number | null }>(),
-    env.DB.prepare(`SELECT resources.*, submitter.name AS account_submitter_name, submitter.image AS account_submitter_image
+    env.DB.prepare(`SELECT resources.*, submitter.name AS account_submitter_name, submitter.image AS account_submitter_image, submitter.username AS account_submitter_username
       FROM resources
       LEFT JOIN "user" AS submitter ON resources.submitted_by_user_id = submitter.id
       WHERE ${condition}

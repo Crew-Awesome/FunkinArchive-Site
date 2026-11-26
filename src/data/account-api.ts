@@ -24,10 +24,21 @@ export async function fetchAccountResources(signal?: AbortSignal): Promise<Accou
   return { resources: result.resources, total: Number(result.total ?? result.resources.length) }
 }
 
-export async function fetchAccountProfile(signal?: AbortSignal): Promise<{ bio: string; banner: string | null }> {
+export async function fetchAccountProfile(signal?: AbortSignal): Promise<{ bio: string; banner: string | null; username: string; usernameChangeAvailableAt: string | null }> {
   const response = await fetch("/api/account/profile", { signal, credentials: "same-origin" })
   if (!response.ok) throw new Error(await getErrorMessage(response))
-  return await response.json() as { bio: string; banner: string | null }
+  return await response.json() as { bio: string; banner: string | null; username: string; usernameChangeAvailableAt: string | null }
+}
+
+export async function saveAccountUsername(username: string): Promise<{ username: string; usernameChangeAvailableAt: string | null }> {
+  const response = await fetch("/api/account/username", {
+    method: "PUT",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username }),
+  })
+  if (!response.ok) throw new Error(await getErrorMessage(response))
+  return await response.json() as { username: string; usernameChangeAvailableAt: string | null }
 }
 
 export async function saveAccountProfile(profile: AccountProfileUpdate): Promise<void> {

@@ -5,7 +5,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, params }) => {
   if (typeof slug !== "string" || !slug) return Response.json({ error: "Resource not found." }, { status: 404 })
 
   const row = await env.DB.prepare(`
-    SELECT resources.*, submitter.name AS account_submitter_name, submitter.image AS account_submitter_image
+    SELECT resources.*, submitter.name AS account_submitter_name, submitter.image AS account_submitter_image, submitter.username AS account_submitter_username
     FROM resources
     LEFT JOIN "user" AS submitter ON resources.submitted_by_user_id = submitter.id
     WHERE ${publicResourceStatusCondition} AND resources.slug = ?

@@ -9,8 +9,12 @@ CREATE TABLE "user" (
   createdAt DATE NOT NULL,
   updatedAt DATE NOT NULL,
   bio TEXT NOT NULL DEFAULT '',
-  banner TEXT
+  banner TEXT,
+  username TEXT,
+  username_changed_at TEXT
 );
+
+CREATE UNIQUE INDEX user_username_unique_idx ON "user" (username COLLATE NOCASE) WHERE username IS NOT NULL;
 
 CREATE TABLE resources (
   id TEXT PRIMARY KEY NOT NULL,

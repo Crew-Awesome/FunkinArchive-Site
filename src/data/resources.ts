@@ -5,6 +5,7 @@ export interface ResourceListing {
   version: string
   submittedBy: string
   submittedByUserId: string | null
+  submittedByUsername?: string | null
   submittedByImage: string | null
   fromMod: string | null
   originalBy: string | null
@@ -42,6 +43,7 @@ export interface ResourceRating {
 
 export interface PublicProfile {
   id: string
+  username: string
   name: string
   image: string | null
   banner: string | null
@@ -50,7 +52,7 @@ export interface PublicProfile {
   total: number
 }
 
-export type PublicProfilePreview = Pick<PublicProfile, "id" | "name" | "image" | "banner" | "bio" | "total">
+export type PublicProfilePreview = Pick<PublicProfile, "id" | "username" | "name" | "image" | "banner" | "bio" | "total">
 
 export interface ResourceSubmissionInput {
   title: string
