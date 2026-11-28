@@ -192,7 +192,7 @@ export function AdminPage() {
           <div className="admin-review-topline">
             <div className="admin-review-tabs" role="group" aria-label="Filter submissions by approval status">
               {reviewTabs.map((tab) => <button key={tab.value} type="button" aria-pressed={status === tab.value} onClick={() => { setError(""); setLoading(true); setStatus(tab.value); setPage(1) }}>
-                {tab.label}<span>{data?.counts[tab.value] ?? "—"}</span>
+                {tab.label}<span>{data?.counts[tab.value] ?? "…"}</span>
               </button>)}
             </div>
             <Button variant="outline" onClick={() => { setError(""); setLoading(true); setReload((value) => value + 1) }} disabled={loading}><RefreshCw size={15} aria-hidden="true" />Refresh</Button>
@@ -256,7 +256,7 @@ export function AdminPage() {
                         <span className="admin-submitter-avatar">{resource.submittedByImage ? <img src={resource.submittedByImage} alt="" /> : resource.submittedBy.slice(0, 1).toUpperCase()}</span>{resource.submittedBy}
                       </Link> : <span className="admin-submitter"><span className="admin-submitter-avatar">{resource.submittedBy.slice(0, 1).toUpperCase()}</span>{resource.submittedBy}</span>}</td>
                       <td data-label="Type"><span className="admin-type"><ResourceTypeIcon type={resource.fileType || resource.category || "Other"} />{resource.fileType || resource.category || "Other"}</span></td>
-                      <td data-label="Rating">{resource.ratingAverage != null && resource.ratingCount ? <span className="admin-rating"><Star size={13} fill="currentColor" aria-hidden="true" />{resource.ratingAverage.toFixed(1)} <small>({resource.ratingCount})</small></span> : <span className="admin-no-rating">—</span>}</td>
+                      <td data-label="Rating">{resource.ratingAverage != null && resource.ratingCount ? <span className="admin-rating"><Star size={13} fill="currentColor" aria-hidden="true" />{resource.ratingAverage.toFixed(1)} <small>({resource.ratingCount})</small></span> : <span className="admin-no-rating">Not rated</span>}</td>
                       <td data-label="Submitted">{formatDate(resource.createdAt)}</td>
                       <td data-label="Approval"><span className={`admin-status admin-status-${resource.status.trim().toLocaleLowerCase() || "accepted"}`}>{statusLabel(resource)}</span></td>
                       <td data-label="Actions"><div className="admin-actions">

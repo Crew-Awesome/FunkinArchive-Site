@@ -61,7 +61,7 @@ export function AdminReportsPage() {
   return <section className="admin-page admin-reports-page">
     <AdminNavigation />
     <header className="admin-header admin-reports-header"><div><h1>Reports</h1><p>Review reported resources and suggested fixes.</p></div><div><Button variant="outline" onClick={() => setReload((value) => value + 1)} disabled={loading}><RefreshCw size={15} aria-hidden="true" />Refresh</Button></div></header>
-    <div className="admin-report-tabs" role="group" aria-label="Filter reports by status">{tabs.map((tab) => <button key={tab.value} type="button" aria-pressed={status === tab.value} onClick={() => { setStatus(tab.value); setPage(1) }}>{tab.label}<span>{data?.counts[tab.value] ?? "—"}</span></button>)}</div>
+    <div className="admin-report-tabs" role="group" aria-label="Filter reports by status">{tabs.map((tab) => <button key={tab.value} type="button" aria-pressed={status === tab.value} onClick={() => { setStatus(tab.value); setPage(1) }}>{tab.label}<span>{data?.counts[tab.value] ?? "…"}</span></button>)}</div>
     {error && <div className="admin-error" role="alert">{error}<Button variant="outline" size="sm" onClick={() => setReload((value) => value + 1)}>Retry</Button></div>}
     {loading ? <div className="admin-loading" role="status"><LoaderCircle size={17} className="admin-spin" aria-hidden="true" />Loading reports…</div> : data?.reports.length ? <div className="admin-report-list">{data.reports.map((report) => {
       const busy = busyId === report.id

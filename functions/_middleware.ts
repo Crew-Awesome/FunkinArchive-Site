@@ -113,7 +113,7 @@ async function getResourceMetadata(env: Env, slug: string, url: URL): Promise<Sh
   }
   const type = fileTypes[0]?.trim() || row.category.trim()
   const details = [type, row.from_mod?.trim()].filter(Boolean).join(" · ")
-  const description = trimDescription([details, row.description.trim(), `Submitted by ${row.submitted_by}.`].filter(Boolean).join(" — "))
+  const description = trimDescription([details, row.description.trim(), `Submitted by ${row.submitted_by}.`].filter(Boolean).join(" · "))
   const image = row.cover_key
     ? new URL(`/api/assets?key=${encodeURIComponent(row.cover_key)}`, url.origin).href
     : absoluteImageUrl(row.cover_url, url)
