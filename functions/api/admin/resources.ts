@@ -28,12 +28,13 @@ export const onRequestGet: PagesFunction<AuthEnv> = async ({ request, env, waitU
     conditions.push(`(
       instr(lower(resources.title), lower(?)) > 0
       OR instr(lower(coalesce(submitter.name, resources.submitted_by)), lower(?)) > 0
+      OR instr(lower(coalesce(submitter.username, '')), lower(?)) > 0
       OR instr(lower(coalesce(resources.from_mod, '')), lower(?)) > 0
       OR instr(lower(coalesce(resources.original_by, '')), lower(?)) > 0
       OR instr(lower(coalesce(resources.recreation_by, '')), lower(?)) > 0
       OR EXISTS (SELECT 1 FROM json_each(resources.tags) WHERE instr(lower(value), lower(?)) > 0)
     )`)
-    bindings.push(query, query, query, query, query, query)
+    bindings.push(query, query, query, query, query, query, query)
   }
   if (type) {
     conditions.push("(resources.category = ? OR EXISTS (SELECT 1 FROM json_each(resources.file_types) WHERE value = ?))")

@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from "react"
 import { Link, useParams } from "react-router-dom"
-import { ArrowLeft, Download, ImageOff, Pencil } from "lucide-react"
+import { ArrowLeft, Download, Flag, ImageOff, Pencil } from "lucide-react"
 import { clearResourceRating, fetchResource, fetchResourceRating, saveResourceRating } from "@/data/resources-api"
 import { getResourceTypes, type ResourceListing, type ResourceRating } from "@/data/resources"
 import { ResourceTypePills } from "@/components/resource-type-pills"
@@ -9,6 +9,7 @@ import { StarMeter, StarRatingInput } from "@/components/resource-rating"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { authClient } from "@/lib/auth-client"
+import { ResourceReportDialog } from "@/components/resource-report-dialog"
 
 function formatDate(value: string) {
   const date = new Date(value)
@@ -28,6 +29,7 @@ export function ResourceDetailsPage() {
   const [ratingError, setRatingError] = useState("")
   const [ratingPending, setRatingPending] = useState(false)
   const [submitterFocused, setSubmitterFocused] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
   const profilePreviewId = useId()
 
   useEffect(() => {
@@ -141,8 +143,10 @@ export function ResourceDetailsPage() {
             <div className="details-actions">
               {resource.downloadUrl ? <Button render={<a href={resource.downloadUrl} download={!resource.downloadUrl.startsWith("http")} target={resource.downloadUrl.startsWith("http") ? "_blank" : undefined} rel={resource.downloadUrl.startsWith("http") ? "noreferrer" : undefined} />}><Download size={15} />Download resource</Button> : resource.alternateDownloads.length === 0 && <p>Download not provided.</p>}
               {resource.alternateDownloads.map((url, index) => <Button key={url} variant="outline" render={<a href={url} target="_blank" rel="noreferrer" />}><Download size={15} />Alternative download {index + 1}</Button>)}
+              {authData?.user ? <Button variant="ghost" size="sm" onClick={() => setReportOpen(true)}><Flag size={15} />Report an issue</Button> : !authPending && <Button variant="ghost" size="sm" render={<Link to="/login" />}><Flag size={15} />Log in to report</Button>}
             </div>
           </div>
+          <ResourceReportDialog resource={resource} open={reportOpen} onOpenChange={setReportOpen} />
         </article>
       ) : (
         <section className="details-message" role="status"><h1>Resource not found</h1><p>This resource isn’t in the catalog.</p></section>

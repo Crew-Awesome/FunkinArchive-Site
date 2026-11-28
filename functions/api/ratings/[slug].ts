@@ -1,5 +1,6 @@
 import { publicResourceStatusCondition } from "../../_shared/resources"
 import { createAuth, type AuthEnv } from "../../_shared/auth"
+import { userRestrictionResponse } from "../../_shared/user-restrictions"
 
 interface RatingRow {
   id: string
@@ -57,6 +58,8 @@ export const onRequestPut: PagesFunction<AuthEnv> = async ({ request, env, param
   if (typeof slug !== "string" || !slug) return Response.json({ error: "Resource not found." }, { status: 404 })
   const session = await getSession(request, env, waitUntil)
   if (!session) return Response.json({ error: "Log in to rate a resource." }, { status: 401 })
+  const restriction = await userRestrictionResponse(env.DB, session.user.id, "community")
+  if (restriction) return Response.json({ error: (await restriction.json() as { message: string }).message }, { status: 403 })
   const resource = await getResource(env, slug)
   if (!resource) return Response.json({ error: "Resource not found." }, { status: 404 })
   if (resource.submitted_by_user_id === session.user.id) {
@@ -93,6 +96,8 @@ export const onRequestDelete: PagesFunction<AuthEnv> = async ({ request, env, pa
   if (typeof slug !== "string" || !slug) return Response.json({ error: "Resource not found." }, { status: 404 })
   const session = await getSession(request, env, waitUntil)
   if (!session) return Response.json({ error: "Log in to change your rating." }, { status: 401 })
+  const restriction = await userRestrictionResponse(env.DB, session.user.id, "community")
+  if (restriction) return Response.json({ error: (await restriction.json() as { message: string }).message }, { status: 403 })
   const resource = await getResource(env, slug)
   if (!resource) return Response.json({ error: "Resource not found." }, { status: 404 })
   await env.DB.prepare("DELETE FROM resource_ratings WHERE resource_id = ? AND user_id = ?")

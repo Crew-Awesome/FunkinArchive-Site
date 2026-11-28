@@ -28,6 +28,8 @@ const PeoplePage = lazy(() => import("@/components/people-page").then(({ PeopleP
 const PublicProfilePage = lazy(() => import("@/components/public-profile-page").then(({ PublicProfilePage: page }) => ({ default: page })))
 const SubmitPage = lazy(() => import("@/components/submit-page").then(({ SubmitPage: page }) => ({ default: page })))
 const AdminPage = lazy(() => import("@/components/admin-page").then(({ AdminPage: page }) => ({ default: page })))
+const AdminReportsPage = lazy(() => import("@/components/admin-reports-page").then(({ AdminReportsPage: page }) => ({ default: page })))
+const AdminUsersPage = lazy(() => import("@/components/admin-users-page").then(({ AdminUsersPage: page }) => ({ default: page })))
 const SettingsPage = lazy(() => import("@/components/settings-page").then(({ SettingsPage: page }) => ({ default: page })))
 
 const primaryLinks = [
@@ -232,7 +234,7 @@ function Sidebar() {
 function MobileNavigation() {
   const [open, setOpen] = useState(false)
   const location = useLocation()
-  const title = primaryLinks.find((link) => link.to === location.pathname)?.label ?? (location.pathname === "/admin" ? "Admin" : location.pathname === "/settings" ? "Settings" : location.pathname === "/account" ? null : "FunkinArchive")
+  const title = primaryLinks.find((link) => link.to === location.pathname)?.label ?? (location.pathname === "/admin" ? "Admin" : location.pathname === "/admin/reports" ? "Reports" : location.pathname === "/admin/users" ? "Users" : location.pathname === "/settings" ? "Settings" : location.pathname === "/account" ? null : "FunkinArchive")
   return (
     <header className="mobile-header">
       <Sheet open={open} onOpenChange={setOpen}>
@@ -277,6 +279,8 @@ function AppShell({ scheme, onToggleScheme }: { scheme: ColorScheme; onToggleSch
           <Route path="/resources/:slug" element={<ResourceDetailsPage />} />
           <Route path="/submit" element={<Suspense fallback={<section className="submit-page" aria-busy="true">Loading submission form…</section>}><SubmitPage /></Suspense>} />
           <Route path="/admin" element={<Suspense fallback={<section className="admin-page" aria-busy="true">Loading admin…</section>}><AdminPage /></Suspense>} />
+          <Route path="/admin/reports" element={<Suspense fallback={<section className="admin-page" aria-busy="true">Loading reports…</section>}><AdminReportsPage /></Suspense>} />
+          <Route path="/admin/users" element={<Suspense fallback={<section className="admin-page" aria-busy="true">Loading users…</section>}><AdminUsersPage /></Suspense>} />
           <Route path="/users/:username" element={<Suspense fallback={<section className="public-profile-page" aria-busy="true">Loading profile…</section>}><PublicProfilePage /></Suspense>} />
           <Route path="/settings" element={<Suspense fallback={<section className="settings-page" aria-busy="true">Loading settings…</section>}><SettingsPage scheme={scheme} onToggleScheme={onToggleScheme} /></Suspense>} />
           <Route path="/account" element={<Suspense fallback={<section className="account-page" aria-busy="true">Loading account…</section>}><AccountPage /></Suspense>} />

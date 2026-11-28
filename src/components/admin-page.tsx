@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ResourceTypeIcon } from "@/components/resource-type-icon"
 import { StarRatingFilter } from "@/components/star-rating-filter"
 import type { ResourceListing } from "@/data/resources"
+import { AdminNavigation } from "@/components/admin-navigation"
 
 type ReviewStatus = "pending" | "accepted" | "rejected"
 type ModerationSettings = { autoApproval: boolean; submissionsLocked: boolean }
@@ -46,8 +47,8 @@ export function AdminPage() {
   const [authorized, setAuthorized] = useState<boolean | null>(null)
   const [status, setStatus] = useState<ReviewStatus>("pending")
   const [page, setPage] = useState(1)
-  const [query, setQuery] = useState("")
-  const [debouncedQuery, setDebouncedQuery] = useState("")
+  const [query, setQuery] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "")
+  const [debouncedQuery, setDebouncedQuery] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "")
   const [type, setType] = useState("all")
   const [minRating, setMinRating] = useState("all")
   const [sort, setSort] = useState("newest")
@@ -183,20 +184,18 @@ export function AdminPage() {
 
   return (
     <section className="admin-page">
-      <header className="admin-header">
-        <Button variant="outline" onClick={() => { setError(""); setLoading(true); setReload((value) => value + 1) }} disabled={loading}>
-          <RefreshCw size={15} aria-hidden="true" />Refresh
-        </Button>
-      </header>
-
+      <AdminNavigation />
       {error && <div className="admin-error" role="alert"><span>{error}</span><Button variant="outline" size="sm" onClick={() => { setError(""); setLoading(true); setReload((value) => value + 1) }}>Retry</Button></div>}
 
       <div className="admin-layout">
         <section className="admin-review-section" aria-label="Resource submissions">
-          <div className="admin-review-tabs" role="group" aria-label="Filter submissions by approval status">
-            {reviewTabs.map((tab) => <button key={tab.value} type="button" aria-pressed={status === tab.value} onClick={() => { setError(""); setLoading(true); setStatus(tab.value); setPage(1) }}>
-              {tab.label}<span>{data?.counts[tab.value] ?? "—"}</span>
-            </button>)}
+          <div className="admin-review-topline">
+            <div className="admin-review-tabs" role="group" aria-label="Filter submissions by approval status">
+              {reviewTabs.map((tab) => <button key={tab.value} type="button" aria-pressed={status === tab.value} onClick={() => { setError(""); setLoading(true); setStatus(tab.value); setPage(1) }}>
+                {tab.label}<span>{data?.counts[tab.value] ?? "—"}</span>
+              </button>)}
+            </div>
+            <Button variant="outline" onClick={() => { setError(""); setLoading(true); setReload((value) => value + 1) }} disabled={loading}><RefreshCw size={15} aria-hidden="true" />Refresh</Button>
           </div>
 
           <search className="admin-review-controls" aria-label="Search and filter submissions">

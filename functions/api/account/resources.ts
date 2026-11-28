@@ -2,6 +2,7 @@ import { createAuth, type AuthEnv } from "../../_shared/auth"
 import { accountImageKeyFromUrl } from "../../_shared/account-assets"
 import { toResource, type ResourceRow } from "../../_shared/resources"
 import { readModerationSettings } from "../../_shared/admin"
+import { userRestrictionResponse } from "../../_shared/user-restrictions"
 
 const allowedResourceTypes = ["Chroms", "DWPs", "FLAs", "FLMs", "FLPs", "MIDIs", "SF2s", "Other"]
 
@@ -25,6 +26,8 @@ export const onRequestGet: PagesFunction<AuthEnv> = async ({ request, env, waitU
   const auth = createAuth(env, request, waitUntil)
   const session = await auth.api.getSession({ headers: request.headers })
   if (!session) return Response.json({ message: "You must be signed in to view your submissions." }, { status: 401 })
+  const restriction = await userRestrictionResponse(env.DB, session.user.id, "account")
+  if (restriction) return restriction
 
   const params = new URL(request.url).searchParams
   const query = (params.get("q") ?? "").trim().slice(0, 120)
@@ -111,6 +114,8 @@ export const onRequestPost: PagesFunction<AuthEnv> = async ({ request, env, wait
   const auth = createAuth(env, request, waitUntil)
   const session = await auth.api.getSession({ headers: request.headers })
   if (!session) return Response.json({ message: "Log in to submit a resource." }, { status: 401 })
+  const restriction = await userRestrictionResponse(env.DB, session.user.id, "submit")
+  if (restriction) return restriction
   const moderationSettings = await readModerationSettings(env.DB)
   if (moderationSettings.submissionsLocked) {
     return Response.json({ message: "New submissions are temporarily locked. Please try again later." }, { status: 423 })

@@ -97,6 +97,70 @@ CREATE TABLE resource_ratings (
 );
 CREATE INDEX resource_ratings_user_id_idx ON resource_ratings (user_id);
 
+CREATE TABLE resource_reports (
+  id TEXT NOT NULL PRIMARY KEY,
+  resource_id TEXT NOT NULL REFERENCES resources (id) ON DELETE CASCADE,
+  reporter_user_id TEXT NOT NULL REFERENCES "user" (id) ON DELETE CASCADE,
+  reason_code TEXT NOT NULL CHECK (reason_code IN (
+    'leaked_private_content', 'paid_download', 'unrelated_resource', 'credit_problem',
+    'spam_duplicate_misleading', 'community_safety', 'unsafe_download',
+    'broken_cover', 'broken_download', 'incorrect_details', 'other'
+  )),
+  target_field TEXT CHECK (target_field IS NULL OR target_field IN ('content', 'cover', 'download', 'alternate_download', 'metadata')),
+  target_index INTEGER,
+  details TEXT NOT NULL,
+  suggested_url TEXT,
+  suggested_image_key TEXT,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_review', 'resolved', 'dismissed')),
+  resolution_note TEXT NOT NULL DEFAULT '',
+  resolved_by_user_id TEXT REFERENCES "user" (id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  resolved_at TEXT
+);
+CREATE INDEX resource_reports_status_created_idx ON resource_reports (status, created_at DESC);
+CREATE INDEX resource_reports_resource_status_idx ON resource_reports (resource_id, status, reason_code, target_field, target_index);
+CREATE INDEX resource_reports_reporter_created_idx ON resource_reports (reporter_user_id, created_at DESC);
+
+CREATE TABLE resource_report_actions (
+  id TEXT NOT NULL PRIMARY KEY,
+  report_id TEXT NOT NULL REFERENCES resource_reports (id) ON DELETE CASCADE,
+  admin_user_id TEXT REFERENCES "user" (id) ON DELETE SET NULL,
+  action TEXT NOT NULL CHECK (action IN ('investigate', 'dismiss', 'resolve', 'apply_fix', 'reject_resource')),
+  target_field TEXT,
+  before_value TEXT,
+  after_value TEXT,
+  note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE INDEX resource_report_actions_report_idx ON resource_report_actions (report_id, created_at DESC);
+
+CREATE TABLE user_restrictions (
+  id TEXT NOT NULL PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES "user" (id) ON DELETE CASCADE,
+  action TEXT NOT NULL CHECK (action IN ('ban', 'mute', 'restrict_submissions')),
+  reason TEXT NOT NULL,
+  expires_at TEXT,
+  created_by_user_id TEXT REFERENCES "user" (id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  revoked_at TEXT,
+  revoked_by_user_id TEXT REFERENCES "user" (id) ON DELETE SET NULL,
+  revoke_note TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX user_restrictions_active_idx ON user_restrictions (user_id, action, expires_at) WHERE revoked_at IS NULL;
+
+CREATE TABLE user_admin_actions (
+  id TEXT NOT NULL PRIMARY KEY,
+  target_user_id TEXT NOT NULL REFERENCES "user" (id) ON DELETE CASCADE,
+  admin_user_id TEXT REFERENCES "user" (id) ON DELETE SET NULL,
+  action TEXT NOT NULL CHECK (action IN ('ban', 'mute', 'restrict_submissions', 'lift_restriction', 'reset_profile', 'resource_status')),
+  before_value TEXT,
+  after_value TEXT,
+  note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE INDEX user_admin_actions_target_idx ON user_admin_actions (target_user_id, created_at DESC);
+
 CREATE TABLE site_admins (
   user_id TEXT PRIMARY KEY NOT NULL
 );

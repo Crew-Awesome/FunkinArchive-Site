@@ -1,6 +1,7 @@
 import { createAuth, type AuthEnv } from "../../_shared/auth"
 import { accountImageKeyFromUrl } from "../../_shared/account-assets"
 import { ensureUsername, usernameChangeAvailableAt } from "../../_shared/usernames"
+import { userRestrictionResponse } from "../../_shared/user-restrictions"
 
 interface ProfileInput {
   name?: unknown
@@ -13,6 +14,8 @@ export const onRequestGet: PagesFunction<AuthEnv> = async ({ request, env, waitU
   const auth = createAuth(env, request, waitUntil)
   const session = await auth.api.getSession({ headers: request.headers })
   if (!session) return Response.json({ message: "You must be signed in to view your profile." }, { status: 401 })
+  const restriction = await userRestrictionResponse(env.DB, session.user.id, "account")
+  if (restriction) return restriction
 
   const profile = await env.DB.prepare(`SELECT id, name, username, username_changed_at, bio, banner FROM "user" WHERE id = ?`)
     .bind(session.user.id)
@@ -38,6 +41,8 @@ export const onRequestPut: PagesFunction<AuthEnv> = async ({ request, env, waitU
   const auth = createAuth(env, request, waitUntil)
   const session = await auth.api.getSession({ headers: request.headers })
   if (!session) return Response.json({ message: "You must be signed in to update your profile." }, { status: 401 })
+  const restriction = await userRestrictionResponse(env.DB, session.user.id, "community")
+  if (restriction) return restriction
 
   let body: unknown
   try {

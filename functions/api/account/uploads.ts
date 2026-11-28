@@ -1,5 +1,6 @@
 import { createAuth, type AuthEnv } from "../../_shared/auth"
 import { accountImageKey, accountImageUrl } from "../../_shared/account-assets"
+import { userRestrictionResponse } from "../../_shared/user-restrictions"
 
 const maxImageSize = 5 * 1024 * 1024
 const allowedImageTypes = new Map([
@@ -23,6 +24,8 @@ export const onRequestPost: PagesFunction<AuthEnv> = async ({ request, env, wait
   const auth = createAuth(env, request, waitUntil)
   const session = await auth.api.getSession({ headers: request.headers })
   if (!session) return Response.json({ message: "You must be signed in to upload an image." }, { status: 401 })
+  const restriction = await userRestrictionResponse(env.DB, session.user.id, "community")
+  if (restriction) return restriction
 
   let formData: FormData
   try {

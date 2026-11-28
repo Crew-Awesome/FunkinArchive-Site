@@ -1,5 +1,6 @@
 import { createAuth, type AuthEnv } from "../../_shared/auth"
 import { ensureUsername, usernameChangeAvailableAt } from "../../_shared/usernames"
+import { userRestrictionResponse } from "../../_shared/user-restrictions"
 
 const usernamePattern = /^[a-z0-9](?:[a-z0-9-]{1,22}[a-z0-9])$/
 
@@ -11,6 +12,8 @@ export const onRequestPut: PagesFunction<AuthEnv> = async ({ request, env, waitU
   const auth = createAuth(env, request, waitUntil)
   const session = await auth.api.getSession({ headers: request.headers })
   if (!session) return Response.json({ message: "Log in to change your username." }, { status: 401 })
+  const restriction = await userRestrictionResponse(env.DB, session.user.id, "community")
+  if (restriction) return restriction
 
   let body: unknown
   try {

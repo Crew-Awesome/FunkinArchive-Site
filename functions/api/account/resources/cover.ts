@@ -1,5 +1,6 @@
 import { createAuth, type AuthEnv } from "../../../_shared/auth"
 import { accountImageKeyFromUrl } from "../../../_shared/account-assets"
+import { userRestrictionResponse } from "../../../_shared/user-restrictions"
 
 export const onRequestPost: PagesFunction<AuthEnv> = async ({ request, env, waitUntil }) => {
   if (request.headers.get("Origin") !== new URL(request.url).origin) {
@@ -9,6 +10,8 @@ export const onRequestPost: PagesFunction<AuthEnv> = async ({ request, env, wait
   const auth = createAuth(env, request, waitUntil)
   const session = await auth.api.getSession({ headers: request.headers })
   if (!session) return Response.json({ message: "You must be signed in to update a resource." }, { status: 401 })
+  const restriction = await userRestrictionResponse(env.DB, session.user.id, "submit")
+  if (restriction) return restriction
 
   let body: unknown
   try {

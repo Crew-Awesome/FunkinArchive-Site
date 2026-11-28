@@ -1,6 +1,7 @@
 import { createAuth, type AuthEnv } from "../../../_shared/auth"
 import { accountImageKeyFromUrl } from "../../../_shared/account-assets"
 import { toResource, type ResourceRow } from "../../../_shared/resources"
+import { userRestrictionResponse } from "../../../_shared/user-restrictions"
 
 const allowedResourceTypes = ["Chroms", "DWPs", "FLAs", "FLMs", "FLPs", "MIDIs", "SF2s", "Other"]
 
@@ -39,6 +40,8 @@ async function requireSession(request: Request, env: AuthEnv, waitUntil: (promis
 export const onRequestGet: PagesFunction<AuthEnv> = async ({ request, env, params, waitUntil }) => {
   const session = await requireSession(request, env, waitUntil)
   if (!session) return Response.json({ message: "Log in to edit a resource." }, { status: 401 })
+  const restriction = await userRestrictionResponse(env.DB, session.user.id, "submit")
+  if (restriction) return restriction
   const row = await getOwnedResource(params.slug, session.user.id, env)
   if (!row) return Response.json({ message: "That resource was not found in your submissions." }, { status: 404 })
   return Response.json({ resource: toResource(row) }, { headers: { "Cache-Control": "private, no-store" } })
@@ -50,6 +53,8 @@ export const onRequestPut: PagesFunction<AuthEnv> = async ({ request, env, param
   }
   const session = await requireSession(request, env, waitUntil)
   if (!session) return Response.json({ message: "Log in to edit a resource." }, { status: 401 })
+  const restriction = await userRestrictionResponse(env.DB, session.user.id, "submit")
+  if (restriction) return restriction
   const row = await getOwnedResource(params.slug, session.user.id, env)
   if (!row) return Response.json({ message: "That resource was not found in your submissions." }, { status: 404 })
 
