@@ -56,7 +56,6 @@ function ResourceCard({ resource }: { resource: ResourceListing }) {
           </div>
           {resource.ratingAverage != null && resource.ratingCount ? <p className="profile-resource-rating"><StarMeter value={resource.ratingAverage} /><span>{resource.ratingAverage.toFixed(1)} · {resource.ratingCount}</span></p> : null}
           <p className="resource-card-submitted">Original By <span>{resource.originalBy?.trim() || "Not listed"}</span></p>
-          {resource.description && <p className="resource-card-description">{resource.description}</p>}
         </div>
       </article>
     </Link>

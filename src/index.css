@@ -332,7 +332,6 @@
 .resource-card-title { min-width: 0; flex: 1 1 auto; overflow: hidden; margin: 0; font-size: 15px; font-weight: 630; letter-spacing: -.02em; text-overflow: ellipsis; white-space: nowrap; }
 .resource-card-submitted { overflow: hidden; margin: 4px 0 0; color: var(--muted-foreground); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .resource-card-submitted span { color: var(--foreground); }
-.resource-card-description { display: -webkit-box; min-height: 36px; overflow: hidden; margin: 0; color: var(--muted-foreground); font-size: 11px; line-height: 1.6; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .skeleton-cover { aspect-ratio: 16 / 9; background: var(--muted); }
 .skeleton-lines { display: grid; gap: 10px; padding: 14px; }
 .skeleton-lines span { height: 10px; border-radius: 5px; background: var(--muted); }
